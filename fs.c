@@ -54,6 +54,11 @@ void fs_start(){
 	superblk -> inode_arr = (struct Inode*)malloc(sizeof(struct Inode*)*NO_OF_INODES);
 	//init the inode array size to 0
 	superblk -> inode_arr_size = 0 ;  
+	// inode_arr[0] will be reserved for the root
+	struct Inode*newInode = (struct Inode*)malloc(sizeof(struct Inode*));
+	strcpy(newInode -> name, "/");
+	newInode -> head = NULL; 
+	newInode -> node_type = 1; 
 }
 
 int fs_open(const char*path,struct fuse_file_info*fi){
@@ -68,7 +73,7 @@ int fs_diropen(const char*path,struct fuse_file_info*fi){
 
 int fs_create(const char*path,mode_t mode , struct fuse_file_info*fi){
 	// need to check for path validity
-	
+
 }
 
 int main(){

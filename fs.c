@@ -39,7 +39,7 @@ struct Inode{
 // START SUPERBLOCK STRUCT
 
 struct Superblk{
-	struct Inode*inode_arr; 
+	struct Inode**inode_arr; 
 	int inode_arr_size; 
 };
 
@@ -51,7 +51,7 @@ void fs_start(){
 	//This function is to initialise the superblock structure
 	superblk = (struct Superblk*)malloc(sizeof(struct superblk*));
 	//init the inode array
-	superblk -> inode_arr = (struct Inode*)malloc(sizeof(struct Inode*)*NO_OF_INODES);
+	superblk -> inode_arr = (struct Inode**)malloc(sizeof(struct Inode*)*NO_OF_INODES);
 	//init the inode array size to 0
 	superblk -> inode_arr_size = 0 ;  
 	// inode_arr[0] will be reserved for the root
@@ -59,6 +59,7 @@ void fs_start(){
 	strcpy(newInode -> name, "/");
 	newInode -> head = NULL; 
 	newInode -> node_type = 1; 
+	superblk -> inode_arr[0] = newInode; 
 }
 
 int fs_open(const char*path,struct fuse_file_info*fi){

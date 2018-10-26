@@ -56,6 +56,21 @@ void fs_start(){
 	superblk -> inode_arr_size = 0 ;  
 }
 
+int fs_open(const char*path,struct fuse_file_info*fi){
+	// need to check for path validity
+	return 0;
+}
+
+int fs_diropen(const char*path,struct fuse_file_info*fi){
+	// need to check for path validity
+	return 0 ; 
+}
+
+int fs_create(const char*path,mode_t mode , struct fuse_file_info*fi){
+	// need to check for path validity
+	
+}
+
 int main(){
 	return 0 ; 
 }

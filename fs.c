@@ -81,6 +81,16 @@ int insert_inode_to_superblk_arr(struct Inode*newInode){
 	return 0 ;  
 }
 
+int get_inode_index(const char*path){
+	//get the inode index based on path 
+	for(int i = 0; i < NO_OF_INODES ; i++){
+		struct Inode*temp = superblk -> inode_arr[i]; 
+		if(strcmp(temp -> name,path) == 0)
+			return i ; 
+	}
+	return -1; 
+}
+
 // END HELPER FUNCTIONS
 
 void fs_start(){

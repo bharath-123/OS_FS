@@ -21,6 +21,8 @@ struct Data{
 };
 
 We will be accessing all the filesystem data through a superblock struct which will make things more organised.
+Files will have text.
+Directory Data will contain the files present in the directory
 
 struct superblock{
 	struct inode *inode_arr;

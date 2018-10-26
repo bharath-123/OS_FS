@@ -93,6 +93,52 @@ int get_inode_index(const char*path){
 
 // END HELPER FUNCTIONS
 
+// START DATA BLOCK LLIST FUNCTIONS
+
+struct Data*createnewnode(char *text){
+	struct Data*newNode = (struct Data*)malloc(sizeof(struct Data));
+	newNode -> next = NULL; 
+	newNode -> data = (char*)malloc(sizeof(char)*35);
+	strcpy(newNode -> data, text);
+	return newNode; 
+}
+
+struct Data*AddToEnd(struct Data*head,char*data){
+	struct Data*newNode = createnewnode(data);
+	if(head == NULL){
+		head = newNode;
+	}
+	else{
+		struct Data*temp = head;
+		while(temp -> next != NULL){
+			temp = temp -> next; 
+		}
+		temp -> next = newNode; 
+	}
+	return head;
+}
+
+struct Data*part_insert(struct Data*head, char*data){
+	int data_size = strlen(data);
+	int no_of_blks ; 
+	if(data_size <= 30)
+		no_of_blks = 1; 
+	else
+		no_of_blks = 3;
+	int offset = 0 ; 
+	while(no_of_blks--){
+		char*temp = data;
+		char*buf = (char*)malloc(sizeof(char)*30);
+		strncpy(buf,temp + offset,30);
+		head = AddToEnd(head,buf);
+		offset += 30; 
+	} 
+	return head; 
+}
+
+
+// END DATA BLOCK LLIST FUNCTIONS
+
 void fs_start(){
 	//This function is to initialise the superblock structure
 	superblk = (struct Superblk*)malloc(sizeof(struct Superblk));
@@ -107,6 +153,9 @@ void fs_start(){
 
 int fs_open(const char*path,struct fuse_file_info*fi){
 	// need to check for path validity
+	// need to create inode
+	// need to write to inode block of directory
+	// add inode to the superblock array
 	return 0;
 }
 

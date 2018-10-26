@@ -34,6 +34,8 @@ struct Inode{
 	int node_type ; // 0 for file, 1 for dir , 2 for link(if implemented)
 };
 
+// END INODE STRUCT
+
 // START SUPERBLOCK STRUCT
 
 struct Superblk{
@@ -42,8 +44,17 @@ struct Superblk{
 };
 
 // END SUPERBLOCK STRUCT
-// END INODE STRUCT
 
+struct Superblk*superblk;
+
+void fs_start(){
+	//This function is to initialise the superblock structure
+	superblk = (struct Superblk*)malloc(sizeof(struct superblk*));
+	//init the inode array
+	superblk -> inode_arr = (struct Inode*)malloc(sizeof(struct Inode*)*NO_OF_INODES);
+	//init the inode array size to 0
+	superblk -> inode_arr_size = 0 ;  
+}
 
 int main(){
 	return 0 ; 

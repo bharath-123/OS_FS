@@ -39,3 +39,5 @@ We will keep some macros.
 
 I have an idea of using a trie to check for the validity of the path of a file or dir.
 eg : if we have a path "/tmp/dir/file.txt" . This will be an error if dir is not present. So we can a trie to such error checks. 
+
+The names in the Data block and Inode blocks will be the absolute paths of the file

@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <fuse.h>
+#include "assert.h"
 
 // START MACROS
 
@@ -51,7 +52,7 @@ struct Superblk*superblk;
 
 struct Inode* createnewInode(const char*path,int type){ // 0 for file, 1 for dir, 2 for links
 	struct Inode*newInode = (struct Inode*)malloc(sizeof(struct Inode));
-	newInode -> name = (char*)malloc(sizeof(char)*50);
+	newInode -> name = (char*)malloc(sizeof(char)*strlen(path));
 	strcpy(newInode -> name,path);
 	newInode -> head = NULL;
 	newInode -> metadata = (struct stat*)malloc(sizeof(struct stat));
@@ -142,6 +143,19 @@ struct Data*part_insert(struct Data*head, char*data){
 	return head; 
 }
 
+char**get_data(struct Data*head){
+	char**text = (char**)malloc(sizeof(char*)*10);
+	struct Data*temp = head; 
+	int i = 0; 
+	while(temp != NULL){
+		text[i] = (char*)malloc(sizeof(char)*strlen(temp -> data));
+		strcpy(text[i],temp -> data);
+		temp = temp -> next; 
+		i += 1;
+	}
+	text[i] = "\00";
+	return text; 
+}
 
 
 
@@ -166,12 +180,20 @@ int fs_open(const char*path,struct fuse_file_info*fi){
 	// need to create inode
 	// need to write to inode block of directory
 	// add inode to the superblock array
+	int inode_index = get_inode_index(path);
+	if(inode_index == -1){
+		return -ENOENT;
+	}
 	return 0;
 }
 
 int fs_diropen(const char*path,struct fuse_file_info*fi){
 	// need to check for path validity
-	return 0 ; 
+	int inode_index = get_inode_index(path);
+	if(inode_index == -1){
+		return -ENOENT;
+	} 
+	return 0 ;
 }
 
 int fs_create(const char*path,mode_t mode , struct fuse_file_info*fi){
@@ -187,13 +209,19 @@ static int fs_getattr(const char*path,struct stat*st){
 	printf("In getattr\n");
 	printf("%s\n",path);
 	int inode_index = get_inode_index(path);
-	if(inode_index == -1) return 0 ; 
-	struct Inode* node = superblk -> inode_arr[inode_index];
+	printf("inode index is %d ",inode_index);
+	if(inode_index == -1) return -ENOENT ; 
+	struct Inode* node = get_inode(inode_index);
 	st -> st_uid = node -> metadata -> st_uid;
+	printf("uid is %d \n",st -> st_uid);
 	st -> st_gid = node -> metadata -> st_gid;
+	printf("gid is %d \n",st -> st_gid);
 	st -> st_mode = node -> metadata -> st_mode; 
+	printf("mode is %d \n",st -> st_mode);
 	st -> st_nlink = node -> metadata -> st_nlink;
+	printf("nlink is %d \n",st -> st_nlink);
 	st -> st_size = node -> metadata -> st_size; 
+	printf("size is %d \n",st -> st_size);
 	return 0;
 }
 
@@ -204,6 +232,9 @@ int fs_mkdir(const char*path,mode_t mode){
 	// write this dir data(inode no) into parent dir
 	printf("In mkdir\n");
 	printf("%s\n",path);
+	if(get_inode_index(path) >= 0){
+		return 0 ; 
+	}
 	struct Inode*newNode = createnewInode(path,1);
 	int parent_node_index = get_inode_index("/");
 	if(parent_node_index == -1){
@@ -211,7 +242,7 @@ int fs_mkdir(const char*path,mode_t mode){
 	}
 	// add to superblock
 	int new_index = insert_inode_to_superblk_arr(newNode);
-	struct Inode*parent = superblk -> inode_arr[parent_node_index];
+	struct Inode*parent = get_inode(parent_node_index);
 	parent -> metadata -> st_nlink += 1; 
 	// inserted inode no of child to parent
 	parent -> head = part_insert(parent -> head,path);
@@ -220,10 +251,23 @@ int fs_mkdir(const char*path,mode_t mode){
 
 int fs_readdir(const char*path,void*buf,fuse_fill_dir_t filler , off_t offset, struct fuse_file_info*fi){
 	printf("In readdir\n");
+	printf("%s\n",path);
 	filler(buf,".",NULL,0);
 	filler(buf,"..",NULL,0);
 	int inode_index = get_inode_index(path);
+	if(inode_index == -1) return -ENOENT ; 
 	struct Inode*node = get_inode(inode_index);
+	if(node == NULL){
+		return 0; 
+	}
+	char**node_data = get_data(node -> head);
+	int i =0 ; 
+	while(strcmp(node_data[i],"\00")){
+		printf("node data is %s ",node_data[i]);
+		filler(buf,node_data[i],NULL,0);
+		i +=1 ; 
+	}
+	return 0;
 }
 
 //END FUSE FUNCTIONS
@@ -233,8 +277,8 @@ int fs_readdir(const char*path,void*buf,fuse_fill_dir_t filler , off_t offset, s
 static struct fuse_operations fs_oper = {
 	.open = fs_open,
 	.opendir = fs_diropen,
-	.create = fs_create,
 	.mkdir = fs_mkdir,
+	.readdir = fs_readdir,
 	.getattr = fs_getattr
 };
 

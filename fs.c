@@ -114,7 +114,7 @@ struct Inode*get_inode(int index){
 	return superblk -> inode_arr[index];
 }
 
-char* ret_file(char* path)
+char* ret_file(const char* path)
 {   
     int l = strlen(path);
     char *prev=(char*)malloc(sizeof(char)*(l+1));
@@ -133,23 +133,53 @@ char* ret_file(char* path)
     return prev;
 }
 
-char* ret_dir(char* path)
-{
-   int l = strlen(path);
-   int i = l-1;
-   while(i>0 && path[i]!='/'){
-        i--;
-   } 
-   int j =0 ;
-   char *str1 = (char*)malloc(sizeof(char)*30);  
-   
-   for(j=0;j<i;j++)
-   {
-    str1[j]=path[j];
+char*ret_dir1(char*path){
+   if(strcmp(path,"/") == 0){
+   		char *str1 = (char*)malloc(sizeof(char)*(strlen(path) + 1));
+   		strcpy(str1,"/");
+   		return str1;
    }
-   str1[j] = '\0';
-   return str1;
+   else{
+
+   }	
 }
+
+char* ret_dir(const char* path)
+{
+   if(strcmp(path,"/") == 0){
+   		char *str1 = (char*)malloc(sizeof(char)*(strlen(path) + 1));
+   		strcpy(str1,"/");
+   		return str1;
+   }
+   int count = 0 ; 
+   for(int i = 0 ; i < strlen(path); i++){
+      if(path[i] == '/'){
+      	count += 1; 
+      }
+   }
+   if(count == 1){
+   		char *str1 = (char*)malloc(sizeof(char)*(strlen(path) + 1));
+   		strcpy(str1,"/");
+   		return str1;
+   }
+   else{
+	   int l = strlen(path);
+	   int i = l-1;
+	   while(i>0 && path[i]!='/'){
+	        i--;
+	   } 
+	   int j =0 ;
+	   char *str1 = (char*)malloc(sizeof(char)*(strlen(path) + 1));  
+	   
+	   for(j=0;j<i;j++)
+	   {
+	    str1[j]=path[j];
+	   }
+	   str1[j] = '\0';
+	   return str1;
+	}
+}
+
 
 void free_inode(struct Inode*node,int inode_index){
 	free(node -> head);
@@ -300,7 +330,8 @@ int fs_create(const char*path,mode_t mode , struct fuse_file_info*fi){
 		return -EEXIST ; 
 	}
 	struct Inode*newNode = createnewInode(path,0);
-	int parent_node_index = get_inode_index("/");
+	char*parent_dir = ret_dir(path);
+	int parent_node_index = get_inode_index(parent_dir);
 	if(parent_node_index == -1){
 		return -ENOENT;
 	}
@@ -322,7 +353,8 @@ int fs_getattr(const char*path,struct stat*st){
 	printf("In getattr\n");
 	printf("%s\n",path);
 	int inode_index = get_inode_index(path);
-	int parent_index = get_inode_index("/");
+	char*parent = ret_dir(path);
+	int parent_index = get_inode_index(parent);
 	if(parent_index == -1) return -ENOENT;
 	printf("inode index is %d ",inode_index);
 	if(inode_index == -1) return -ENOENT; //node not found
@@ -356,7 +388,8 @@ int fs_mkdir(const char*path,mode_t mode){
 		return -EEXIST; 
 	}
 	struct Inode*newNode = createnewInode(path,1);
-	int parent_node_index = get_inode_index("/");
+	char*parent = ret_dir(path);
+	int parent_node_index = get_inode_index(parent);
 	if(parent_node_index != -1){
 		// add to superblock
 		int new_index = insert_inode_to_superblk_arr(newNode);
@@ -474,7 +507,8 @@ int fs_rmdir(const char*path){
 	// need to update the parent dir now
 	// get the parent inode
 	// hardcoded waiting for vijay
-	int parent_index = get_inode_index("/");
+	char*parent = ret_dir(path);
+	int parent_index = get_inode_index(parent);
 	struct Inode*parent_inode = get_inode(parent_index);
 	// now need to delete the value from the parent inodes linked list
 	deleteKey(&(parent_inode -> head),path);
@@ -501,7 +535,8 @@ int fs_unlink(const char*path){
 	// need to update the parent dir now
 	// get the parent inode
 	// hardcoded waiting for vijay
-	int parent_index = get_inode_index("/");
+	char*parent = ret_dir(path);
+	int parent_index = get_inode_index(parent);
 	struct Inode*parent_inode = get_inode(parent_index);
 	// now need to delete the value from the parent inodes linked list
 	deleteKey(&(parent_inode -> head),path);

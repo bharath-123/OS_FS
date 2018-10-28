@@ -123,6 +123,15 @@ char* ret_file(char* path)
     return prev;
 }
 
+void free_inode(struct Inode*node,int inode_index){
+	free(node -> head);
+	free(node -> metadata);
+	free(node -> name);
+	free(node);
+	// now mark the inode_index with NULL
+	superblk -> inode_arr[inode_index] = NULL;
+}
+
 // END HELPER FUNCTIONS
 
 // START DATA BLOCK LLIST FUNCTIONS
@@ -430,6 +439,10 @@ int fs_rmdir(const char*path){
 	if(node -> node_type !=1){
 		return -ENOENT;
 	}
+	// node will be considered for deletion only if it is empty
+	if(node -> head != NULL){
+		return -ENOTEMPTY;
+	}
 	// need to update the parent dir now
 	// get the parent inode
 	// hardcoded waiting for vijay
@@ -440,18 +453,9 @@ int fs_rmdir(const char*path){
 	// now reduce the link of the parent inode
 	parent_inode -> metadata -> st_nlink -= 1; 
 	// now we need to deallocate the original inode
-	// write a function to do this
-	free(node -> head);
-	free(node -> metadata);
-	free(node -> name);
-	free(node);
-	// now mark the inode_index with NULL
-	superblk -> inode_arr[inode_index] = NULL;
+	free_inode(node,inode_index);
 	return 0;	
-
 }
-
-
 
 //END FUSE FUNCTIONS
 

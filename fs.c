@@ -123,6 +123,24 @@ char* ret_file(char* path)
     return prev;
 }
 
+char* ret_dir(char* path)
+{
+   int l = strlen(path);
+   int i = l-1;
+   while(i>0 && path[i]!='/'){
+        i--;
+   } 
+   int j =0 ;
+   char *str1 = (char*)malloc(sizeof(char)*30);  
+   
+   for(j=0;j<i;j++)
+   {
+    str1[j]=path[j];
+   }
+   str1[j] = '\0';
+   return str1;
+}
+
 void free_inode(struct Inode*node,int inode_index){
 	free(node -> head);
 	free(node -> metadata);

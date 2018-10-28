@@ -83,11 +83,19 @@ struct Inode* createnewInode(const char*path,int type){ // 0 for file, 1 for dir
 
 int insert_inode_to_superblk_arr(struct Inode*newInode){
 	// function to create add inode pointer to inode array
+	// if we find out that the inode array is full then do a 2nd poll to check if any NULL values were introduced because of deletion
 	if(superblk -> inode_arr_size < NO_OF_INODES){
 		superblk -> inode_arr[(superblk -> inode_arr_size)++] = newInode; 
 		return superblk -> inode_arr_size; // return the index of the inode entered 
 	}
-	return -1 ;  
+	for(int i = 0 ; i < NO_OF_INODES ;i++){
+		if(superblk -> inode_arr[i] == NULL){
+			// node has been deleted
+			superblk -> inode_arr[i] = newInode;
+			return i;
+		}
+	}
+	return -1;   
 }
 
 int get_inode_index(const char*path){

@@ -102,8 +102,10 @@ int get_inode_index(const char*path){
 	//get the inode index based on path 
 	for(int i = 0; i < superblk -> inode_arr_size ; i++){
 		struct Inode*temp = superblk -> inode_arr[i]; 
-		if(strcmp(temp -> name,path) == 0)
-			return i ; 
+		if(temp != NULL){
+			if(strcmp(temp -> name,path) == 0)
+				return i ; 
+		}
 	}
 	return -1; 
 }
@@ -483,6 +485,34 @@ int fs_rmdir(const char*path){
 	return 0;	
 }
 
+int fs_unlink(const char*path){
+	printf("In unlink\n");
+	// get the inode to be deleted
+	int inode_index = get_inode_index(path);
+	// check if the inode is present
+	if(inode_index == -1){
+		return -ENOENT;
+	}
+	//get the inode
+	struct Inode*node = get_inode(inode_index);
+	if(node -> node_type != 0){
+		return -ENOENT;
+	}
+	// need to update the parent dir now
+	// get the parent inode
+	// hardcoded waiting for vijay
+	int parent_index = get_inode_index("/");
+	struct Inode*parent_inode = get_inode(parent_index);
+	// now need to delete the value from the parent inodes linked list
+	deleteKey(&(parent_inode -> head),path);
+	// now reduce the link of the parent inode
+	parent_inode -> metadata -> st_nlink -= 1;
+	// now we need to deallocate the original inode
+	free_inode(node,inode_index);
+	return 0;
+
+}
+
 //END FUSE FUNCTIONS
 
 // START OF FUSE STRUCT
@@ -496,7 +526,8 @@ static struct fuse_operations fs_oper = {
 	.create = fs_create,
 	.write = fs_write,
 	.read = fs_read,
-	.rmdir = fs_rmdir
+	.rmdir = fs_rmdir,
+	.unlink = fs_unlink
 };
 
 // END OF FUSE STRUCT

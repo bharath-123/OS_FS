@@ -125,7 +125,7 @@ struct Data*AddToEnd(struct Data*head,char*data){
 	return head;
 }
 
-struct Data*part_insert(struct Data*head, char*data){
+struct Data*part_insert(struct Data*head, const char*data){
 	int data_size = strlen(data);
 	int no_of_blks ; 
 	if(data_size <= DATA_BLOCK_SIZE)
@@ -134,7 +134,7 @@ struct Data*part_insert(struct Data*head, char*data){
 		no_of_blks = ((data_size) /DATA_BLOCK_SIZE) + 1;
 	int offset = 0 ; 
 	while(no_of_blks--){
-		char*temp = data;
+		const char*temp = data;
 		char*buf = (char*)malloc(sizeof(char)*DATA_BLOCK_SIZE);
 		strncpy(buf,temp + offset,DATA_BLOCK_SIZE);
 		head = AddToEnd(head,buf);
@@ -177,9 +177,6 @@ void fs_start(){
 
 int fs_open(const char*path,struct fuse_file_info*fi){
 	// need to check for path validity
-	// need to create inode
-	// need to write to inode block of directory
-	// add inode to the superblock array
 	int inode_index = get_inode_index(path);
 	if(inode_index == -1){
 		return -ENOENT;
@@ -200,7 +197,22 @@ int fs_create(const char*path,mode_t mode , struct fuse_file_info*fi){
 	// need to check for path validity
 	// should also add code to check out of memory but later
 	// create the inode for the file
-
+	printf("In create\n");
+	printf("%s \n",path);
+	if(get_inode_index(path) >= 0){ // path already exists
+		return 0 ; 
+	}
+	struct Inode*newNode = createnewInode(path,0);
+	int parent_node_index = get_inode_index("/");
+	if(parent_node_index == -1){
+		return 0;
+	}
+	int new_index = insert_inode_to_superblk_arr(newNode);
+	struct Inode*parent = get_inode(parent_node_index);
+	parent -> metadata -> st_nlink += 1; 
+	// inserted inode no of child to parent
+	parent -> head = part_insert(parent -> head,path);
+	printf("Success create\n");
 	return 0;
 
 }
@@ -209,8 +221,10 @@ static int fs_getattr(const char*path,struct stat*st){
 	printf("In getattr\n");
 	printf("%s\n",path);
 	int inode_index = get_inode_index(path);
+	int parent_index = get_inode_index("/");
+	if(parent_index == -1) return -ENOENT;
 	printf("inode index is %d ",inode_index);
-	if(inode_index == -1) return -ENOENT ; 
+	if(inode_index == -1) return -ENOENT ; //node not found
 	struct Inode* node = get_inode(inode_index);
 	st -> st_uid = node -> metadata -> st_uid;
 	printf("uid is %d \n",st -> st_uid);
@@ -222,6 +236,7 @@ static int fs_getattr(const char*path,struct stat*st){
 	printf("nlink is %d \n",st -> st_nlink);
 	st -> st_size = node -> metadata -> st_size; 
 	printf("size is %d \n",st -> st_size);
+	printf("Getattr success\n");
 	return 0;
 }
 
@@ -246,7 +261,12 @@ int fs_mkdir(const char*path,mode_t mode){
 	parent -> metadata -> st_nlink += 1; 
 	// inserted inode no of child to parent
 	parent -> head = part_insert(parent -> head,path);
+	printf("Success MKDIR\n");
 	return 0; 
+}
+
+int fs_getxattr(const char*path,struct stat*st){
+	return 0;
 }
 
 int fs_readdir(const char*path,void*buf,fuse_fill_dir_t filler , off_t offset, struct fuse_file_info*fi){
@@ -257,9 +277,6 @@ int fs_readdir(const char*path,void*buf,fuse_fill_dir_t filler , off_t offset, s
 	int inode_index = get_inode_index(path);
 	if(inode_index == -1) return -ENOENT ; 
 	struct Inode*node = get_inode(inode_index);
-	if(node == NULL){
-		return 0; 
-	}
 	char**node_data = get_data(node -> head);
 	int i =0 ; 
 	while(strcmp(node_data[i],"\00")){
@@ -267,6 +284,7 @@ int fs_readdir(const char*path,void*buf,fuse_fill_dir_t filler , off_t offset, s
 		filler(buf,node_data[i],NULL,0);
 		i +=1 ; 
 	}
+	printf("Readdir success\n");
 	return 0;
 }
 
@@ -279,7 +297,8 @@ static struct fuse_operations fs_oper = {
 	.opendir = fs_diropen,
 	.mkdir = fs_mkdir,
 	.readdir = fs_readdir,
-	.getattr = fs_getattr
+	.getattr = fs_getattr,
+	.create = fs_create,
 };
 
 // END OF FUSE STRUCT

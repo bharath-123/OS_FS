@@ -62,17 +62,20 @@ struct Inode* createnewInode(const char*path,int type){ // 0 for file, 1 for dir
 	newInode -> metadata -> st_gid = getgid(); 
 	newInode -> metadata -> st_size = sizeof(struct Inode) + sizeof(struct stat);
 	newInode -> metadata -> st_blocks = ((newInode -> metadata -> st_size) / 512) + 1; 
+	newInode -> metadata -> st_atime = time(0);
+	newInode -> metadata -> st_mtime = time(0);
+	newInode -> metadata -> st_ctime = time(0);
 	// type specific methods
 	if(type == 0){
 		// file
 		newInode -> node_type = 0 ; 
-		newInode -> metadata -> st_mode = S_IFREG | 0777;
+		newInode -> metadata -> st_mode = S_IFREG | 0755;
 		newInode -> metadata -> st_nlink = 1;
 	}
 	else if(type == 1){
 		//dir
 		newInode -> node_type = 1; 
-		newInode -> metadata -> st_mode = S_IFDIR | 0777;
+		newInode -> metadata -> st_mode = S_IFDIR | 0755;
 		newInode -> metadata -> st_nlink = 2 ; 
 	}
 	return newInode; 
@@ -104,7 +107,7 @@ struct Inode*get_inode(int index){
 char* ret_file(char* path)
 {   
     int l = strlen(path);
-    char *prev=(char*)malloc(sizeof(char)*30);
+    char *prev=(char*)malloc(sizeof(char)*strlen(path));
     int i = l-1;
     while(i>0 && path[i]!='/'){
         i--;
@@ -127,7 +130,7 @@ char* ret_dir(char* path)
         i--;
    } 
    int j =0 ;
-   char *str1 = (char*)malloc(sizeof(char)*30);  
+   char *str1 = (char*)malloc(sizeof(char)*strlen(path));  
    
    for(j=0;j<i;j++)
    {
@@ -278,6 +281,9 @@ int fs_getattr(const char*path,struct stat*st){
 	st -> st_size = node -> metadata -> st_size; 
 	printf("size is %d \n",st -> st_size);
 	st -> st_blocks = node -> metadata -> st_blocks;
+	st -> st_atime = node -> metadata -> st_atime;
+	st -> st_mtime = node -> metadata -> st_mtime;
+	st -> st_ctime = node -> metadata -> st_ctime;
 	printf("Getattr success\n");
 	return 0;
 }
@@ -320,12 +326,24 @@ int fs_readdir(const char*path,void*buf,fuse_fill_dir_t filler , off_t offset, s
 	int i =0 ; 
 	while(strcmp(node_data[i],"\0")){
 		printf("node data is %s ",node_data[i]);
-		node_data[i] = node_data[i] + 1;
-		filler(buf,node_data[i],NULL,0);
+		char*temp = ret_file(node_data[i]);
+		filler(buf,temp,NULL,0);
 		i +=1 ; 
 	}
 	printf("Readdir success\n");
 	return 0;
+}
+
+static int fs_write(const char*path,const char*buf,size_t size,off_t offset,struct fuse_file_info*fi){
+	printf("In write\n");
+	// get the inode index of the file to be written to
+	int inode_index = get_inode_index(path);
+	// if inode not present
+	if(inode_index == -1){
+		return -ENOENT;
+	}
+	struct Inode*node = get_inode(inode_index);
+	//update the mtime and ctime of the file
 }
 
 //END FUSE FUNCTIONS
@@ -338,7 +356,7 @@ static struct fuse_operations fs_oper = {
 	.mkdir = fs_mkdir,
 	.readdir = fs_readdir,
 	.getattr = fs_getattr,
-	.create = fs_create,
+	.create = fs_create
 };
 
 // END OF FUSE STRUCT

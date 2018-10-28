@@ -107,7 +107,7 @@ struct Inode*get_inode(int index){
 char* ret_file(char* path)
 {   
     int l = strlen(path);
-    char *prev=(char*)malloc(sizeof(char)*strlen(path));
+    char *prev=(char*)malloc(sizeof(char)*(l+1));
     int i = l-1;
     while(i>0 && path[i]!='/'){
         i--;
@@ -119,26 +119,9 @@ char* ret_file(char* path)
         prev[k]=path[j];
         k++;
     }
+    prev[k]='\0';
     return prev;
 }
-
-char* ret_dir(char* path)
-{
-   int l = strlen(path);
-   int i = l-1;
-   while(i>0 && path[i]!='/'){
-        i--;
-   } 
-   int j =0 ;
-   char *str1 = (char*)malloc(sizeof(char)*strlen(path));  
-   
-   for(j=0;j<i;j++)
-   {
-    str1[j]=path[j];
-   }
-   return str1;
-}
-
 
 // END HELPER FUNCTIONS
 
@@ -335,15 +318,7 @@ int fs_readdir(const char*path,void*buf,fuse_fill_dir_t filler , off_t offset, s
 }
 
 static int fs_write(const char*path,const char*buf,size_t size,off_t offset,struct fuse_file_info*fi){
-	printf("In write\n");
-	// get the inode index of the file to be written to
-	int inode_index = get_inode_index(path);
-	// if inode not present
-	if(inode_index == -1){
-		return -ENOENT;
-	}
-	struct Inode*node = get_inode(inode_index);
-	//update the mtime and ctime of the file
+
 }
 
 //END FUSE FUNCTIONS

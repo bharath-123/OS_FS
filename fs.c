@@ -1,4 +1,6 @@
-#define FUSE_USE_VERSION 26
+#ifndef FUSE_USE_VERSION
+#define FUSE_USE_VERSION 30
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -52,24 +54,25 @@ struct Superblk*superblk;
 
 struct Inode* createnewInode(const char*path,int type){ // 0 for file, 1 for dir, 2 for links
 	struct Inode*newInode = (struct Inode*)malloc(sizeof(struct Inode));
-	newInode -> name = (char*)malloc(sizeof(char)*strlen(path));
+	newInode -> name = malloc(sizeof(char)*(strlen(path)));
 	strcpy(newInode -> name,path);
 	newInode -> head = NULL;
 	newInode -> metadata = (struct stat*)malloc(sizeof(struct stat));
 	newInode -> metadata -> st_uid = getuid(); 
 	newInode -> metadata -> st_gid = getgid(); 
 	newInode -> metadata -> st_size = sizeof(struct Inode) + sizeof(struct stat);
+	newInode -> metadata -> st_blocks = ((newInode -> metadata -> st_size) / 512) + 1; 
 	// type specific methods
 	if(type == 0){
 		// file
 		newInode -> node_type = 0 ; 
-		newInode -> metadata -> st_mode = S_IFREG | 0755;
+		newInode -> metadata -> st_mode = S_IFREG | 0777;
 		newInode -> metadata -> st_nlink = 1;
 	}
 	else if(type == 1){
 		//dir
 		newInode -> node_type = 1; 
-		newInode -> metadata -> st_mode = S_IFDIR | 0755;
+		newInode -> metadata -> st_mode = S_IFDIR | 0777;
 		newInode -> metadata -> st_nlink = 2 ; 
 	}
 	return newInode; 
@@ -98,6 +101,42 @@ struct Inode*get_inode(int index){
 	return superblk -> inode_arr[index];
 }
 
+char* ret_file(char* path)
+{   
+    int l = strlen(path);
+    char *prev=(char*)malloc(sizeof(char)*30);
+    int i = l-1;
+    while(i>0 && path[i]!='/'){
+        i--;
+    } 
+    int j = 0;
+    int k=0;
+    for(j=i+1;j<l;j++)
+    {
+        prev[k]=path[j];
+        k++;
+    }
+    return prev;
+}
+
+char* ret_dir(char* path)
+{
+   int l = strlen(path);
+   int i = l-1;
+   while(i>0 && path[i]!='/'){
+        i--;
+   } 
+   int j =0 ;
+   char *str1 = (char*)malloc(sizeof(char)*30);  
+   
+   for(j=0;j<i;j++)
+   {
+    str1[j]=path[j];
+   }
+   return str1;
+}
+
+
 // END HELPER FUNCTIONS
 
 // START DATA BLOCK LLIST FUNCTIONS
@@ -105,7 +144,7 @@ struct Inode*get_inode(int index){
 struct Data*createnewnode(char *text){
 	struct Data*newNode = (struct Data*)malloc(sizeof(struct Data));
 	newNode -> next = NULL; 
-	newNode -> data = (char*)malloc(sizeof(char)*35);
+	newNode -> data = (char*)malloc(sizeof(char)*(strlen(text) + 1));
 	strcpy(newNode -> data, text);
 	return newNode; 
 }
@@ -135,7 +174,7 @@ struct Data*part_insert(struct Data*head, const char*data){
 	int offset = 0 ; 
 	while(no_of_blks--){
 		const char*temp = data;
-		char*buf = (char*)malloc(sizeof(char)*DATA_BLOCK_SIZE);
+		char*buf = (char*)malloc(sizeof(char)*(DATA_BLOCK_SIZE + 1));
 		strncpy(buf,temp + offset,DATA_BLOCK_SIZE);
 		head = AddToEnd(head,buf);
 		offset += 30; 
@@ -148,16 +187,14 @@ char**get_data(struct Data*head){
 	struct Data*temp = head; 
 	int i = 0; 
 	while(temp != NULL){
-		text[i] = (char*)malloc(sizeof(char)*strlen(temp -> data));
+		text[i] = (char*)malloc(sizeof(char)*(strlen(temp -> data) + 1));
 		strcpy(text[i],temp -> data);
 		temp = temp -> next; 
 		i += 1;
 	}
-	text[i] = "\00";
+	text[i] = "\0";
 	return text; 
 }
-
-
 
 // END DATA BLOCK LLIST FUNCTIONS
 
@@ -200,12 +237,12 @@ int fs_create(const char*path,mode_t mode , struct fuse_file_info*fi){
 	printf("In create\n");
 	printf("%s \n",path);
 	if(get_inode_index(path) >= 0){ // path already exists
-		return 0 ; 
+		return -EEXIST ; 
 	}
 	struct Inode*newNode = createnewInode(path,0);
 	int parent_node_index = get_inode_index("/");
 	if(parent_node_index == -1){
-		return 0;
+		return -ENOENT;
 	}
 	int new_index = insert_inode_to_superblk_arr(newNode);
 	struct Inode*parent = get_inode(parent_node_index);
@@ -217,14 +254,18 @@ int fs_create(const char*path,mode_t mode , struct fuse_file_info*fi){
 
 }
 
-static int fs_getattr(const char*path,struct stat*st){
+int fs_getxattr(const char*path,const char*attrs,char*buf,size_t s){
+	return 0;
+}
+
+int fs_getattr(const char*path,struct stat*st){
 	printf("In getattr\n");
 	printf("%s\n",path);
 	int inode_index = get_inode_index(path);
 	int parent_index = get_inode_index("/");
 	if(parent_index == -1) return -ENOENT;
 	printf("inode index is %d ",inode_index);
-	if(inode_index == -1) return -ENOENT ; //node not found
+	if(inode_index == -1) return -ENOENT; //node not found
 	struct Inode* node = get_inode(inode_index);
 	st -> st_uid = node -> metadata -> st_uid;
 	printf("uid is %d \n",st -> st_uid);
@@ -236,6 +277,7 @@ static int fs_getattr(const char*path,struct stat*st){
 	printf("nlink is %d \n",st -> st_nlink);
 	st -> st_size = node -> metadata -> st_size; 
 	printf("size is %d \n",st -> st_size);
+	st -> st_blocks = node -> metadata -> st_blocks;
 	printf("Getattr success\n");
 	return 0;
 }
@@ -248,25 +290,20 @@ int fs_mkdir(const char*path,mode_t mode){
 	printf("In mkdir\n");
 	printf("%s\n",path);
 	if(get_inode_index(path) >= 0){
-		return 0 ; 
+		return -EEXIST; 
 	}
 	struct Inode*newNode = createnewInode(path,1);
 	int parent_node_index = get_inode_index("/");
-	if(parent_node_index == -1){
-		return 0;
-	}
-	// add to superblock
-	int new_index = insert_inode_to_superblk_arr(newNode);
-	struct Inode*parent = get_inode(parent_node_index);
-	parent -> metadata -> st_nlink += 1; 
-	// inserted inode no of child to parent
-	parent -> head = part_insert(parent -> head,path);
-	printf("Success MKDIR\n");
+	if(parent_node_index != -1){
+		// add to superblock
+		int new_index = insert_inode_to_superblk_arr(newNode);
+		struct Inode*parent = get_inode(parent_node_index);
+		parent -> metadata -> st_nlink += 1; 
+		// inserted inode no of child to parent
+		parent -> head = part_insert(parent -> head,path);
+		printf("Success MKDIR\n");
+	}	
 	return 0; 
-}
-
-int fs_getxattr(const char*path,struct stat*st){
-	return 0;
 }
 
 int fs_readdir(const char*path,void*buf,fuse_fill_dir_t filler , off_t offset, struct fuse_file_info*fi){
@@ -275,12 +312,15 @@ int fs_readdir(const char*path,void*buf,fuse_fill_dir_t filler , off_t offset, s
 	filler(buf,".",NULL,0);
 	filler(buf,"..",NULL,0);
 	int inode_index = get_inode_index(path);
-	if(inode_index == -1) return -ENOENT ; 
+	if(inode_index == -1){
+		return -ENOENT ; 
+	}
 	struct Inode*node = get_inode(inode_index);
 	char**node_data = get_data(node -> head);
 	int i =0 ; 
-	while(strcmp(node_data[i],"\00")){
+	while(strcmp(node_data[i],"\0")){
 		printf("node data is %s ",node_data[i]);
+		node_data[i] = node_data[i] + 1;
 		filler(buf,node_data[i],NULL,0);
 		i +=1 ; 
 	}

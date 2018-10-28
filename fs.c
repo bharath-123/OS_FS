@@ -305,6 +305,10 @@ int fs_readdir(const char*path,void*buf,fuse_fill_dir_t filler , off_t offset, s
 		return -ENOENT ; 
 	}
 	struct Inode*node = get_inode(inode_index);
+	// check if node is a directory or file
+	if(node -> node_type != 1){
+		return -ENOTDIR;
+	}
 	char**node_data = get_data(node -> head);
 	int i =0 ; 
 	while(strcmp(node_data[i],"\0")){
@@ -318,6 +322,36 @@ int fs_readdir(const char*path,void*buf,fuse_fill_dir_t filler , off_t offset, s
 }
 
 static int fs_write(const char*path,const char*buf,size_t size,off_t offset,struct fuse_file_info*fi){
+	printf("In write\n");
+	//get the inode to write to
+	int inode_index = get_inode_index(path);
+	if(inode_index == -1){
+		return -ENOENT;
+	}
+	struct Inode*node = get_inode(inode_index);
+	// write works only for files. We can have 2 files of the same name
+	if(node -> node_type != 0){
+		return -ENOENT;
+	}
+	// update the mtime and ctime of the node
+	node -> metadata-> st_mtime = time(NULL);
+	node -> metadata -> st_ctime = time(NULL);
+	//update the size of the file
+	node -> metadata -> st_size = size + offset;
+	// add the data to the node
+	// first create a temp buffer to store the data
+	char*temp = (char*)malloc(sizeof(char)*(strlen(buf) + 1));
+	//memset(temp + offset,0,size);
+	strcpy(temp,buf);
+	printf("%s\n",temp);
+	// now insert to the linked list
+	node -> head = part_insert(node -> head,temp);
+	// now set the buffer to 0
+	memset((char*)buf,0,strlen(buf));
+	return size; 
+}
+
+int do_read(const char*path,char*buf,size_t size,off_t offset,struct fuse_file_info*fi){
 
 }
 
@@ -331,7 +365,8 @@ static struct fuse_operations fs_oper = {
 	.mkdir = fs_mkdir,
 	.readdir = fs_readdir,
 	.getattr = fs_getattr,
-	.create = fs_create
+	.create = fs_create,
+	.write = fs_write
 };
 
 // END OF FUSE STRUCT

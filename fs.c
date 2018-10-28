@@ -150,6 +150,43 @@ struct Data*AddToEnd(struct Data*head,char*data){
 	return head;
 }
 
+void deleteKey(struct Data **head_ref, const char*key) 
+{ 
+    // Store head node 
+    struct Data* temp = *head_ref, *prev; 
+  
+    // If head node itself holds the key or multiple occurrences of key 
+    while (temp != NULL && (strcmp(temp -> data,key)) == 0) 
+    { 
+        *head_ref = temp->next;   // Changed head 
+        free(temp);               // free old head 
+        temp = *head_ref;         // Change Temp 
+    } 
+  
+    // Delete occurrences other than head 
+    while (temp != NULL) 
+    { 
+        // Search for the key to be deleted, keep track of the 
+        // previous node as we need to change 'prev->next' 
+        while (temp != NULL && strcmp(temp -> data,key) != 0) 
+        { 
+            prev = temp; 
+            temp = temp->next; 
+        } 
+  
+        // If key was not present in linked list 
+        if (temp == NULL) return; 
+  
+        // Unlink the node from linked list 
+        prev->next = temp->next; 
+  
+        free(temp);  // Free memory 
+  
+        //Update Temp for next iteration of outer loop 
+        temp = prev->next; 
+    } 
+} 
+
 struct Data*part_insert(struct Data*head, const char*data){
 	int data_size = strlen(data);
 	int no_of_blks ; 
@@ -351,9 +388,70 @@ static int fs_write(const char*path,const char*buf,size_t size,off_t offset,stru
 	return size; 
 }
 
-int do_read(const char*path,char*buf,size_t size,off_t offset,struct fuse_file_info*fi){
+int fs_read(const char*path,char*buf,size_t size,off_t offset,struct fuse_file_info*fi){
+	printf("In read\n");
+	// get the inode to read
+	int inode_index = get_inode_index(path);
+	if(inode_index == -1){
+		return -ENOENT;
+	}
+	struct Inode*node = get_inode(inode_index);
+	// check if node is a file 
+	if(node -> node_type != 0){
+		return -ENOENT;
+	}
+	//update the access time of the file
+	node -> metadata -> st_atime = time(NULL);
+	// get the data from the linked list
+	char**node_data = get_data(node -> head);
+	int temp_size = 0;
+	int i =0 ; 
+	while(strcmp(node_data[i],"\0")){
+		printf("node data is %s ",node_data[i]);
+		temp_size += strlen(node_data[i]);
+		strcpy(buf,node_data[i] + offset);
+		i += 1 ; 
+	}
+	if(temp_size == 0) return 0;
+	return size; 
 
 }
+
+int fs_rmdir(const char*path){
+	printf("In rmdir\n");
+	// get the inode to be deleted
+	int inode_index = get_inode_index(path);
+	// check if the inode is present
+	if(inode_index == -1){
+		return -ENOENT;
+	}
+	// get the inode
+	struct Inode*node = get_inode(inode_index);
+	if(node -> node_type !=1){
+		return -ENOENT;
+	}
+	// need to update the parent dir now
+	// get the parent inode
+	// hardcoded waiting for vijay
+	int parent_index = get_inode_index("/");
+	struct Inode*parent_inode = get_inode(parent_index);
+	// now need to delete the value from the parent inodes linked list
+	deleteKey(&(parent_inode -> head),path);
+	// now reduce the link of the parent inode
+	parent_inode -> metadata -> st_nlink -= 1; 
+	// now we need to deallocate the original inode
+	// write a function to do this
+	free(node -> head);
+	free(node -> metadata);
+	free(node -> name);
+	free(node);
+	// now mark the inode_index with NULL
+	superblk -> inode_arr[inode_index] = NULL;
+	return 0;	
+
+}
+
+
 
 //END FUSE FUNCTIONS
 
@@ -366,7 +464,9 @@ static struct fuse_operations fs_oper = {
 	.readdir = fs_readdir,
 	.getattr = fs_getattr,
 	.create = fs_create,
-	.write = fs_write
+	.write = fs_write,
+	.read = fs_read,
+	.rmdir = fs_rmdir
 };
 
 // END OF FUSE STRUCT

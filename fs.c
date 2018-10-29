@@ -62,9 +62,9 @@ struct Inode* createnewInode(const char*path,int type){ // 0 for file, 1 for dir
 	newInode -> metadata -> st_gid = getgid(); 
 	newInode -> metadata -> st_size = sizeof(struct Inode) + sizeof(struct stat);
 	newInode -> metadata -> st_blocks = ((newInode -> metadata -> st_size) / 512) + 1; 
-	newInode -> metadata -> st_atime = time(0);
-	newInode -> metadata -> st_mtime = time(0);
-	newInode -> metadata -> st_ctime = time(0);
+	newInode -> metadata -> st_atime = time(NULL);
+	newInode -> metadata -> st_mtime = time(NULL);
+	newInode -> metadata -> st_ctime = time(NULL);
 	// type specific methods
 	if(type == 0){
 		// file

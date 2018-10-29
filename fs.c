@@ -255,6 +255,7 @@ void deleteKey(struct Data **head_ref, const char*key)
     } 
 } 
 
+// will insert to 30 bytes to linked list
 struct Data*part_insert(struct Data*head, const char*data){
 	int data_size = strlen(data);
 	int no_of_blks ; 

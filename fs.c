@@ -16,6 +16,7 @@
 
 #define NO_OF_INODES 90
 #define DATA_BLOCK_SIZE 30
+#define SUPERBLK_FILE "~/projects/OS_FS/superblk.data"
 
 // END MACROS
 
@@ -369,7 +370,7 @@ int fs_getattr(const char*path,struct stat*st){
 	printf("nlink is %d \n",st -> st_nlink);
 	st -> st_size = node -> metadata -> st_size; 
 	printf("size is %d \n",st -> st_size);
-	st -> st_blocks = node -> metadata -> st_blocks;
+	st -> st_blocks = ((node -> metadata -> st_size) / 512) + 1;
 	st -> st_atime = node -> metadata -> st_atime;
 	st -> st_mtime = node -> metadata -> st_mtime;
 	st -> st_ctime = node -> metadata -> st_ctime;
@@ -567,7 +568,10 @@ static struct fuse_operations fs_oper = {
 
 // END OF FUSE STRUCT
 int main(int argc,char*argv[]){
-	fs_start(); 
+	// here reload the superblock if it is present
+	// if it is present then assign the superblock struct from the file to the superblock point
+	// if it is not present then run fs_start() to init the superblock and create the superblock files
+	fs_start();
 	fuse_main(argc,argv,&fs_oper,NULL);
 	return 0 ; 
 }

@@ -273,6 +273,7 @@ struct Data*part_insert(struct Data*head, const char*data){
 	return head; 
 }
 
+// function to get data from linked list
 char**get_data(struct Data*head){
 	char**text = (char**)malloc(sizeof(char*)*10);
 	struct Data*temp = head; 

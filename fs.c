@@ -35,7 +35,7 @@ struct Inode{
 	char*name; 
 	struct stat*metadata; //metadata from stat.h
 	struct Data*head; // data block head pointer
-	int node_type ; // 0 for file, 1 for dir , 2 for link(if implemented)
+	int node_type ; // 0 for file, 1 for dir 
 };
 
 // END INODE STRUCT

@@ -551,6 +551,22 @@ int fs_unlink(const char*path){
 
 }
 
+int fs_chmod(const char*path,mode_t mode){
+	int inode_index = get_inode_index(path);
+	if(inode_index == -1){
+		return -ENOENT;
+	}
+	struct Inode*node = get_inode(inode_index);
+	// now i need to change the permissions
+	if(node -> node_type == 0){
+		node -> metadata -> st_mode = S_IFREG | mode; 
+	}
+	else{
+		node -> metadata -> st_mode = S_IFDIR | mode; 
+	}
+	return 0;
+}
+
 //END FUSE FUNCTIONS
 
 // START OF FUSE STRUCT
@@ -565,7 +581,8 @@ static struct fuse_operations fs_oper = {
 	.write = fs_write,
 	.read = fs_read,
 	.rmdir = fs_rmdir,
-	.unlink = fs_unlink
+	.unlink = fs_unlink,
+	.chmod = fs_chmod
 };
 
 // END OF FUSE STRUCT

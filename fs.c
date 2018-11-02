@@ -16,7 +16,6 @@
 
 #define NO_OF_INODES 90
 #define DATA_BLOCK_SIZE 30
-#define SUPERBLK_FILE "~/projects/OS_FS/superblk.data"
 
 // END MACROS
 
@@ -346,10 +345,6 @@ int fs_create(const char*path,mode_t mode , struct fuse_file_info*fi){
 	printf("Success create\n");
 	return 0;
 
-}
-
-int fs_getxattr(const char*path,const char*attrs,char*buf,size_t s){
-	return 0;
 }
 
 int fs_getattr(const char*path,struct stat*st){
